@@ -527,6 +527,76 @@ def exportar_relatorio_html(
             color: var(--muted);
         }}
 
+                .action-bar {{
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: rgba(19, 26, 45, 0.92);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+        }}
+
+        .action-bar-title {{
+            margin-right: auto;
+        }}
+
+        .action-bar-title strong {{
+            display: block;
+            margin-bottom: 3px;
+            font-size: 16px;
+        }}
+
+        .action-bar-title span {{
+            color: var(--muted);
+            font-size: 13px;
+        }}
+
+        .action-button {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 10px 15px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface-light);
+            color: var(--text);
+            font: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition:
+                border-color 0.2s ease,
+                color 0.2s ease,
+                transform 0.2s ease;
+        }}
+
+        .action-button:hover {{
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-1px);
+        }}
+
+        .action-button-primary {{
+            border-color: rgba(50, 213, 131, 0.45);
+            background: rgba(50, 213, 131, 0.12);
+            color: var(--approved);
+        }}
+
+        .action-button-primary:hover {{
+            border-color: var(--approved);
+            color: var(--approved);
+        }}
+
+        .print-message {{
+            display: none;
+        }}
+
         footer {{
             margin-top: 40px;
             color: var(--muted);
@@ -558,11 +628,108 @@ def exportar_relatorio_html(
                 grid-template-columns: 1fr;
             }}
         }}
+        
+                @media print {{
+            :root {{
+                --background: #ffffff;
+                --surface: #ffffff;
+                --surface-light: #f4f4f5;
+                --border: #d4d4d8;
+                --text: #18181b;
+                --muted: #52525b;
+            }}
+
+            body {{
+                background: #ffffff;
+                color: #18181b;
+            }}
+
+            .container {{
+                width: 100%;
+                padding: 0;
+            }}
+
+            .action-bar {{
+                display: none;
+            }}
+
+            .summary-card,
+            .category-card,
+            .table-wrapper,
+            .score-main {{
+                background: #ffffff;
+                box-shadow: none;
+            }}
+
+            .table-wrapper {{
+                overflow: visible;
+            }}
+
+            table {{
+                min-width: 0;
+                font-size: 10px;
+            }}
+
+            th,
+            td {{
+                padding: 8px;
+            }}
+
+            .observation {{
+                min-width: 0;
+            }}
+
+            .evidence-link {{
+                display: none;
+            }}
+
+            footer {{
+                color: #52525b;
+            }}
+        }}
     </style>
 </head>
 
 <body>
     <main class="container">
+        <nav
+            class="action-bar"
+            aria-label="Ações do relatório"
+        >
+            <div class="action-bar-title">
+                <strong>Ações rápidas</strong>
+
+                <span>
+                    Acesse os arquivos gerados pela auditoria.
+                </span>
+            </div>
+
+            <a
+                class="action-button action-button-primary"
+                href="prontuario_automatico.json"
+                download="prontuario_automatico.json"
+            >
+                📥 Baixar JSON do Prontuário
+            </a>
+
+            <a
+                class="action-button"
+                href="auditoria_completa.json"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                📋 Abrir Auditoria Completa
+            </a>
+
+            <button
+                class="action-button"
+                type="button"
+                onclick="window.print()"
+            >
+                🖨️ Exportar PDF
+            </button>
+        </nav>
+
         <header class="hero">
             <div>
                 <h1>QA Auditor Framework</h1>
@@ -639,8 +806,13 @@ def exportar_relatorio_html(
             </div>
         </section>
 
-        <footer>
+         <footer>
             Relatório gerado automaticamente pelo QA Auditor Framework.
+
+            <div class="print-message">
+                Para salvar este relatório, utilize a opção
+                “Salvar como PDF” na janela de impressão.
+            </div>
         </footer>
     </main>
 </body>
