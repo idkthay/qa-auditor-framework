@@ -24,8 +24,6 @@ from config.settings import (
     LIMITE_DESCOBERTA,
     LIMITE_MPIS,
     REPORTS_DIR,
-    RESPONSIVE_SCREENSHOTS_DIR,
-    SCREENSHOTS_DIR,
     TEMPO_ESPERA_PAGINA,
     TIMEOUT_NAVEGACAO,
     VIEWPORT_DESKTOP,
@@ -45,16 +43,6 @@ from utils.url_helper import eh_url_interna
 
 def preparar_pastas() -> None:
     REPORTS_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    SCREENSHOTS_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    RESPONSIVE_SCREENSHOTS_DIR.mkdir(
         parents=True,
         exist_ok=True,
     )
@@ -89,45 +77,6 @@ def executar_checks(
         )
 
     return resultados
-
-
-def criar_nome_arquivo(
-    url: str,
-) -> str:
-    partes = urlparse(
-        url
-    )
-
-    caminho = partes.path.strip(
-        "/"
-    )
-
-    if not caminho:
-        return "home"
-
-    nome = caminho.replace(
-        "/",
-        "_",
-    )
-
-    caracteres_invalidos = (
-        '<>:"/\\|?*'
-    )
-
-    for caractere in caracteres_invalidos:
-        nome = nome.replace(
-            caractere,
-            "_",
-        )
-
-    nome = nome.strip(
-        "._"
-    )
-
-    if not nome:
-        nome = "pagina"
-
-    return nome[:100]
 
 
 def criar_contexto(
@@ -165,7 +114,6 @@ def criar_resultado_pagina(
         "motivo_ignorada": "",
         "page_data": {},
         "checks": [],
-        "screenshot": "",
     }
 
 
@@ -282,24 +230,6 @@ def auditar_pagina(
             contexto=contexto,
         )
 
-        nome_arquivo = (
-            criar_nome_arquivo(
-                page_data.url_final
-            )
-        )
-
-        caminho_screenshot = (
-            SCREENSHOTS_DIR
-            / f"{nome_arquivo}.png"
-        )
-
-        page.screenshot(
-            path=str(
-                caminho_screenshot
-            ),
-            full_page=True,
-        )
-
         resultado_pagina.update(
             {
                 "url_final": (
@@ -314,9 +244,6 @@ def auditar_pagina(
                     )
                 ),
                 "checks": resultados,
-                "screenshot": str(
-                    caminho_screenshot
-                ),
             }
         )
 
@@ -633,6 +560,8 @@ def salvar_relatorio_tecnico(
         )
 
     return caminho
+
+
 MAPEAMENTO_DIRETO_PRONTUARIO = {
     "Google Analytics 4 - GA4": (
         "Tag Google Analytics (GA4)"
@@ -656,41 +585,51 @@ MAPEAMENTO_DIRETO_PRONTUARIO = {
         "Máscaras ativas nos campos de entrada "
         "(telefone, CPF, etc.)"
     ),
+    "Links de contatos clicáveis e funcionais": (
+        "Links de números clicáveis e funcionais"
+    ),
+    "Phone Numbers - Formatting": (
+        "Texto Formatação - Números de Telefone "
+        "(Ex: 11 99999-9999/11 5555-5555)"
+    ),
+    "Emails - Formatting": (
+        "Texto Formatação - Emails (Ex: email@dominio.com)"
+    ),
+    "Robots.txt - Existência": (
+        "Configuração do arquivo robots.txt"
+    ),
+    "Sitemap XML - Validade": (
+        "Sitemap.xml"
+    ),
 }
 
 
 ITENS_DIRETOS_PRONTUARIO = {
     "CTA - Botão WhatsApp",
-    "Links de contatos clicáveis e funcionais",
+    "Links de números clicáveis e funcionais",
     "Emails clicáveis e funcionais (mailto:)",
     "Google Maps carregando e funcional",
     "Nenhum link ou botão quebrado (404/500)",
     "Lorem Ipsum",
-
     "H1 Missing",
     "H1 Multiple",
     "H1 Duplicate",
     "H2 Missing",
-
     "URLs - Contains Space",
     "URLs - Multiple Slashes",
     "URLs - Non ASCII Characters URL",
     "URLs - Over Characters",
     "URLs - Uppercase",
-
     "Response Codes - Client Error",
     "Response Codes - Redirection",
     "Response Codes - Server Error",
     "Response Codes - Success",
-
     "Meta Descriptions - Duplicate",
     "Meta Descriptions - Missing",
     "Meta Descriptions - Over 160 caracteres",
-
     "Page Titles - Missing",
     "Page Titles - Duplicate",
-    "Page Titles - Over 60 caracteres",
-
+    "Page Titles - Over 100 caracteres",
     "Mixed Content HTTP/HTTPS",
     "Missing HSTS",
     "HTTPS URL’s (100% das URLs)",
@@ -702,11 +641,6 @@ ITENS_DIRETOS_PRONTUARIO = {
 
 
 GRUPOS_PRONTUARIO = {
-    "Números/emails formatados corretamente": [
-        "Phone Numbers - Formatting",
-        "Emails - Formatting",
-    ],
-
     (
         "Todos formulários com validação "
         "e reCAPTCHA ativo (v2 ou v3)"
@@ -718,18 +652,13 @@ GRUPOS_PRONTUARIO = {
         "Formulário - reCAPTCHA presente",
         "Formulário - Apenas um tipo de reCAPTCHA",
     ],
-
     "Menu Header = Menu Footer + Mapa do Site": [
         "Menu Header x Footer",
         "Mapa do Site no Footer",
-        "Sitemap XML - Validade",
     ],
-
     "Mapa do Site": [
         "Mapa do Site no Footer",
-        "Sitemap XML - Validade",
     ],
-
     "Scroll lateral": [
         "Responsividade - Desktop 1920px",
         "Responsividade - Mobile 394px",
@@ -797,7 +726,6 @@ def combinar_itens_prontuario(
         status_final = "approved"
 
     observacoes: list[str] = []
-    imagens: list[str] = []
 
     for nome, resultado in resultados:
         observacao = str(
@@ -810,21 +738,6 @@ def combinar_itens_prontuario(
         if observacao:
             observacoes.append(
                 f"{nome}:\n{observacao}"
-            )
-
-        evidencias = resultado.get(
-            "imgs",
-            [],
-        )
-
-        if isinstance(
-            evidencias,
-            list,
-        ):
-            imagens.extend(
-                str(imagem)
-                for imagem in evidencias
-                if imagem
             )
 
     if checks_ausentes:
@@ -842,11 +755,7 @@ def combinar_itens_prontuario(
         "obs": "\n\n".join(
             observacoes
         ),
-        "imgs": list(
-            dict.fromkeys(
-                imagens
-            )
-        ),
+        "imgs": [],
     }
 
 
@@ -894,10 +803,7 @@ def gerar_itens_importacao_prontuario(
                     "",
                 )
             ),
-            "imgs": resultado.get(
-                "imgs",
-                [],
-            ),
+            "imgs": [],
         }
 
     for (
@@ -919,6 +825,7 @@ def gerar_itens_importacao_prontuario(
         ] = resultado_combinado
 
     return itens_importacao
+
 
 def salvar_prontuario_automatico(
     url_inicial: str,
@@ -1188,16 +1095,6 @@ def executar_auditoria(
             print(
                 f"🌐 Dashboard HTML: "
                 f"{caminho_html}"
-            )
-
-            print(
-                f"📸 Evidências gerais: "
-                f"{SCREENSHOTS_DIR}"
-            )
-
-            print(
-                "📱 Evidências responsivas: "
-                f"{RESPONSIVE_SCREENSHOTS_DIR}"
             )
 
             try:

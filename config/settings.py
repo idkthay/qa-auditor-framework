@@ -1,6 +1,8 @@
+
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,7 +12,13 @@ from dotenv import load_dotenv
 # Caminhos do projeto
 # =========================================================
 
-DIRETORIO_RAIZ = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False):
+    # Quando executado como aplicativo empacotado,
+    # usa a pasta onde o executável está localizado.
+    DIRETORIO_RAIZ = Path(sys.executable).resolve().parent
+else:
+    # Mantém o comportamento normal durante o desenvolvimento.
+    DIRETORIO_RAIZ = Path(__file__).resolve().parent.parent
 
 ARQUIVO_ENV = DIRETORIO_RAIZ / ".env"
 
@@ -18,10 +26,7 @@ REPORTS_DIR = DIRETORIO_RAIZ / "reports"
 
 SCREENSHOTS_DIR = DIRETORIO_RAIZ / "screenshots"
 
-RESPONSIVE_SCREENSHOTS_DIR = (
-    SCREENSHOTS_DIR
-    / "responsive"
-)
+RESPONSIVE_SCREENSHOTS_DIR = SCREENSHOTS_DIR / "responsive"
 
 
 # =========================================================
@@ -34,14 +39,15 @@ load_dotenv(
 )
 
 
+# =========================================================
+# Leitura de variáveis de ambiente
+# =========================================================
+
 def obter_variavel_texto(
     nome: str,
     valor_padrao: str = "",
 ) -> str:
-    valor = os.getenv(
-        nome,
-        valor_padrao,
-    )
+    valor = os.getenv(nome, valor_padrao)
 
     if valor is None:
         return valor_padrao
@@ -60,7 +66,6 @@ def obter_variavel_inteira(
 
     try:
         return int(valor)
-
     except (TypeError, ValueError):
         return valor_padrao
 
@@ -104,21 +109,17 @@ def obter_variavel_booleana(
 # Descoberta e seleção de páginas
 # =========================================================
 
-# Quantidade máxima de páginas que o crawler pode visitar
-# somente para descobrir a estrutura do site.
 LIMITE_DESCOBERTA = obter_variavel_inteira(
     "LIMITE_DESCOBERTA",
     500,
 )
 
-# Quantidade máxima de páginas MPI selecionadas.
 LIMITE_MPIS = obter_variavel_inteira(
     "LIMITE_MPIS",
     10,
 )
 
-# Mantido temporariamente para compatibilidade com módulos
-# antigos que ainda possam importar esta configuração.
+# Mantido para compatibilidade com módulos existentes.
 LIMITE_PAGINAS = obter_variavel_inteira(
     "LIMITE_PAGINAS",
     20,
@@ -161,7 +162,7 @@ TEMPO_ESPERA_RESPONSIVIDADE = obter_variavel_inteira(
 
 HEADLESS = obter_variavel_booleana(
     "HEADLESS",
-    False,
+    True,
 )
 
 
@@ -213,9 +214,7 @@ PAGESPEED_LIMITES = {
 # =========================================================
 
 def pagespeed_esta_configurado() -> bool:
-    return bool(
-        PAGESPEED_API_KEY
-    )
+    return bool(PAGESPEED_API_KEY)
 
 
 def mascarar_chave(
@@ -242,10 +241,6 @@ def obter_status_pagespeed() -> dict[str, str | bool]:
         "chave_mascarada": mascarar_chave(
             PAGESPEED_API_KEY
         ),
-        "arquivo_env": str(
-            ARQUIVO_ENV
-        ),
-        "arquivo_env_existe": (
-            ARQUIVO_ENV.exists()
-        ),
+        "arquivo_env": str(ARQUIVO_ENV),
+        "arquivo_env_existe": ARQUIVO_ENV.exists(),
     }

@@ -56,10 +56,10 @@ class TitleMissingCheck(BaseCheck):
 
 
 class TitleOverCharactersCheck(BaseCheck):
-    nome = "Page Titles - Over 60 caracteres"
+    nome = "Page Titles - Over 100 caracteres"
     categoria = "SEO"
 
-    LIMITE = 60
+    LIMITE = 100
 
     def executar(
         self,

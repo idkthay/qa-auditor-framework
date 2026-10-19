@@ -1,17 +1,12 @@
 from __future__ import annotations
 
-import hashlib
-import re
 from copy import deepcopy
-from pathlib import Path
 from threading import Lock
 from typing import Any
-from urllib.parse import urlparse
 
 from playwright.sync_api import Page
 
 from config.settings import (
-    RESPONSIVE_SCREENSHOTS_DIR,
     TEMPO_ESPERA_RESPONSIVIDADE,
     VIEWPORT_DESKTOP,
 )
@@ -43,76 +38,6 @@ def criar_chave_cache(
     return (
         f"{url}|"
         f"{largura}x{altura}"
-    )
-
-
-def criar_slug_url(
-    url: str,
-) -> str:
-    partes = urlparse(
-        url
-    )
-
-    caminho = partes.path.strip(
-        "/"
-    )
-
-    if not caminho:
-        caminho = "home"
-
-    caminho = caminho.replace(
-        "/",
-        "_",
-    )
-
-    caminho = re.sub(
-        r"[^a-zA-Z0-9_-]+",
-        "_",
-        caminho,
-    )
-
-    caminho = caminho.strip(
-        "_"
-    )
-
-    if not caminho:
-        caminho = "pagina"
-
-    hash_url = hashlib.md5(
-        url.encode(
-            "utf-8"
-        )
-    ).hexdigest()[:8]
-
-    return (
-        f"{caminho[:70]}_"
-        f"{hash_url}"
-    )
-
-
-def criar_caminho_screenshot(
-    url: str,
-    nome_viewport: str,
-    largura: int,
-) -> Path:
-    RESPONSIVE_SCREENSHOTS_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    slug = criar_slug_url(
-        url
-    )
-
-    nome_arquivo = (
-        f"{slug}_"
-        f"{nome_viewport}_"
-        f"{largura}px.png"
-    )
-
-    return (
-        RESPONSIVE_SCREENSHOTS_DIR
-        / nome_arquivo
     )
 
 
@@ -551,7 +476,7 @@ def executar_validacao_responsiva(
 ) -> dict[str, Any]:
     """
     Altera temporariamente a viewport, analisa o
-    layout, gera screenshot e restaura a viewport.
+    layout e restaura a viewport.
     """
     url = page.url
 
@@ -577,14 +502,6 @@ def executar_validacao_responsiva(
         page
     )
 
-    caminho_screenshot = (
-        criar_caminho_screenshot(
-            url=url,
-            nome_viewport=nome_viewport,
-            largura=largura,
-        )
-    )
-
     resultado: dict[str, Any] = {
         "nome_viewport": nome_viewport,
         "largura": largura,
@@ -592,9 +509,6 @@ def executar_validacao_responsiva(
         "url": url,
         "sucesso": False,
         "erro": "",
-        "screenshot": str(
-            caminho_screenshot
-        ),
         "analise": {},
     }
 
@@ -613,13 +527,6 @@ def executar_validacao_responsiva(
         analise = analisar_layout(
             page=page,
             largura_viewport=largura,
-        )
-
-        page.screenshot(
-            path=str(
-                caminho_screenshot
-            ),
-            full_page=True,
         )
 
         resultado.update(

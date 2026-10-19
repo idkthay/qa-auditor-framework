@@ -1,32 +1,38 @@
-# Ambiente virtual
+
+# Ambientes virtuais
 .venv/
 venv/
 
-# Variáveis
+# Variáveis de ambiente e segredos
 .env
 .env.*
 !.env.example
 
-# Relatórios
+# Relatórios e arquivos gerados pelas auditorias
 reports/
 screenshots/
+arquivos_selecao_paginas.txt
+homepage.png
+
+# Arquivos gerados pelo PyInstaller
+build/
+dist/
+*.spec.bak
 
 # Python
 __pycache__/
 *.py[cod]
+.pytest_cache/
+*.egg-info/
 
-# IDE
+# IDEs
 .vscode/
 .idea/
 
-# Arquivos temporários
+# Arquivos temporários e backups
 *.log
 *.tmp
 *.bak
+*.bak*
 Thumbs.db
 .DS_Store
-
-# Arquivos temporários de desenvolvimento
-*.bak
-arquivos_selecao_paginas.txt
-homepage.png
