@@ -34,7 +34,7 @@ from models.page_data import PageData
 from reporters.prontuario_reporter import (
     gerar_itens_prontuario,
 )
-from selectors.page_selector import (
+from page_selection.page_selector import (
     imprimir_resumo_selecao,
     selecionar_paginas,
 )
