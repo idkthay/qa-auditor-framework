@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import patch
 
 from services import responsive_service
 
@@ -25,20 +24,28 @@ class TestValidacaoResponsiva(unittest.TestCase):
             "possui_overflow_horizontal": False,
             "elementos_overflow": [],
         }
+        chamadas_aguardar = []
+        original_aguardar = responsive_service.aguardar_estabilizacao
+        original_analisar = responsive_service.analisar_layout
 
-        with (
-            patch.object(responsive_service, "aguardar_estabilizacao") as aguardar,
-            patch.object(responsive_service, "analisar_layout", return_value=analise),
-        ):
+        def aguardar(_page):
+            chamadas_aguardar.append(_page)
+
+        try:
+            responsive_service.aguardar_estabilizacao = aguardar
+            responsive_service.analisar_layout = lambda **_kwargs: analise
             resultado = responsive_service.executar_validacao_responsiva(
                 page=page,
                 nome_viewport="mobile",
                 largura=394,
                 altura=852,
             )
+        finally:
+            responsive_service.aguardar_estabilizacao = original_aguardar
+            responsive_service.analisar_layout = original_analisar
 
         self.assertTrue(resultado["sucesso"])
-        self.assertEqual(aguardar.call_count, 1)
+        self.assertEqual(len(chamadas_aguardar), 1)
         self.assertEqual(
             page.viewport_size,
             {"width": 1920, "height": 1080},
@@ -57,11 +64,17 @@ class TestValidacaoResponsiva(unittest.TestCase):
             "possui_overflow_horizontal": False,
             "elementos_overflow": [],
         }
+        chamadas_analise = []
+        original_aguardar = responsive_service.aguardar_estabilizacao
+        original_analisar = responsive_service.analisar_layout
 
-        with (
-            patch.object(responsive_service, "aguardar_estabilizacao"),
-            patch.object(responsive_service, "analisar_layout", return_value=analise) as analisar,
-        ):
+        def analisar(**_kwargs):
+            chamadas_analise.append(True)
+            return analise
+
+        try:
+            responsive_service.aguardar_estabilizacao = lambda _page: None
+            responsive_service.analisar_layout = analisar
             primeiro = responsive_service.executar_validacao_responsiva(
                 page=page,
                 nome_viewport="mobile",
@@ -74,8 +87,11 @@ class TestValidacaoResponsiva(unittest.TestCase):
                 largura=394,
                 altura=852,
             )
+        finally:
+            responsive_service.aguardar_estabilizacao = original_aguardar
+            responsive_service.analisar_layout = original_analisar
 
-        self.assertEqual(analisar.call_count, 1)
+        self.assertEqual(len(chamadas_analise), 1)
         self.assertEqual(primeiro, segundo)
 
 
