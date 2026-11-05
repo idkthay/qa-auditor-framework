@@ -65,6 +65,16 @@ class TestConsolidarChecks(unittest.TestCase):
             1,
         )
 
+    def test_observacoes_sao_separadas_por_quebra_de_linha(self):
+        resultado = consolidar_checks([
+            pagina("https://exemplo.com/contato", "warning", "Primeiro aviso"),
+            pagina("https://exemplo.com/form", "error", "Segunda falha"),
+        ])
+
+        observacoes = resultado["Formulário presente"]["obs"]
+        self.assertIn("\n", observacoes)
+        self.assertNotIn("\\n", observacoes)
+
     def test_observacao_none_nao_interrompe_consolidacao(self):
         resultado = consolidar_checks([
             pagina("https://exemplo.com/", "warning", None),
