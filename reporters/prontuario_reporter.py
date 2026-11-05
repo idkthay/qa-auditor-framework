@@ -171,7 +171,7 @@ def consolidar_checks(
         resultado[nome] = {
             "categoria": dados["categoria"],
             "status": dados["status"],
-            "obs": "\\n".join(ocorrencias_unicas),
+            "obs": "\n".join(ocorrencias_unicas),
             "imgs": imagens_unicas,
         }
 
