@@ -545,12 +545,12 @@ def executar_validacao_responsiva(
 
     finally:
         try:
+            # A próxima validação responsiva aguarda a estabilização
+            # depois de definir sua própria viewport. Aguardar novamente
+            # aqui duplicava até 1 segundo por viewport sem contribuir
+            # para a medição já concluída.
             page.set_viewport_size(
                 viewport_original
-            )
-
-            aguardar_estabilizacao(
-                page
             )
 
         except Exception:

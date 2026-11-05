@@ -5,7 +5,7 @@ import unicodedata
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from selectors.keywords import (
+from page_selection.keywords import (
     PALAVRAS_CATEGORIAS,
     TERMOS_EXCLUSAO_MPI,
     TERMOS_FORTES_MPI,
