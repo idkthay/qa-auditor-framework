@@ -1,3 +1,4 @@
+
 from typing import Any
 
 
@@ -28,9 +29,7 @@ def normalizar_observacao(observacao: Any) -> str:
     return str(observacao).strip()
 
 
-def obter_url_pagina(
-    pagina: dict[str, Any],
-) -> str:
+def obter_url_pagina(pagina: dict[str, Any]) -> str:
     return (
         pagina.get("url_final")
         or pagina.get("url_solicitada")
@@ -38,38 +37,20 @@ def obter_url_pagina(
     )
 
 
-def obter_screenshot_pagina(
-    pagina: dict[str, Any],
-) -> str:
-    return pagina.get(
-        "screenshot",
-        "",
-    )
+def obter_screenshot_pagina(pagina: dict[str, Any]) -> str:
+    screenshot = pagina.get("screenshot", "")
+    return screenshot if isinstance(screenshot, str) else ""
 
 
-def obter_evidencias_check(
-    check: dict[str, Any],
-) -> list[str]:
-    dados = check.get(
-        "dados",
-        {},
-    )
+def obter_evidencias_check(check: dict[str, Any]) -> list[str]:
+    dados = check.get("dados", {})
 
-    if not isinstance(
-        dados,
-        dict,
-    ):
+    if not isinstance(dados, dict):
         return []
 
-    evidencias = dados.get(
-        "evidencias",
-        [],
-    )
+    evidencias = dados.get("evidencias", [])
 
-    if not isinstance(
-        evidencias,
-        list,
-    ):
+    if not isinstance(evidencias, list):
         return []
 
     return [
@@ -77,6 +58,73 @@ def obter_evidencias_check(
         for evidencia in evidencias
         if evidencia
     ]
+
+
+def deduplicar_textos(valores: list[Any]) -> list[str]:
+    """Remove valores vazios e duplicados preservando a ordem."""
+    resultado = []
+    vistos = set()
+
+    for valor in valores:
+        if not isinstance(valor, str):
+            continue
+
+        texto = valor.strip()
+        if not texto or texto in vistos:
+            continue
+
+        vistos.add(texto)
+        resultado.append(texto)
+
+    return resultado
+
+
+def combinar_itens(
+    item_existente: dict[str, Any],
+    item_novo: dict[str, Any],
+) -> dict[str, Any]:
+    """Combina dois itens sem perder status, observações ou evidências."""
+    status_existente = normalizar_status(
+        item_existente.get("status")
+    )
+    status_novo = normalizar_status(
+        item_novo.get("status")
+    )
+
+    if (
+        STATUS_PRIORIDADE[status_novo]
+        > STATUS_PRIORIDADE[status_existente]
+    ):
+        status_final = status_novo
+    else:
+        status_final = status_existente
+
+    observacoes = deduplicar_textos(
+        normalizar_observacao(item_existente.get("obs", "")).splitlines()
+        + normalizar_observacao(item_novo.get("obs", "")).splitlines()
+    )
+
+    imagens_existentes = item_existente.get("imgs", [])
+    imagens_novas = item_novo.get("imgs", [])
+
+    if not isinstance(imagens_existentes, list):
+        imagens_existentes = []
+
+    if not isinstance(imagens_novas, list):
+        imagens_novas = []
+
+    return {
+        "categoria": (
+            item_existente.get("categoria")
+            or item_novo.get("categoria")
+            or "Geral"
+        ),
+        "status": status_final,
+        "obs": "\n".join(observacoes),
+        "imgs": deduplicar_textos(
+            imagens_existentes + imagens_novas
+        ),
+    }
 
 
 def consolidar_checks(
@@ -88,28 +136,23 @@ def consolidar_checks(
         url = obter_url_pagina(pagina)
         screenshot_pagina = obter_screenshot_pagina(pagina)
 
-        for check in pagina.get(
-            "checks",
-            [],
-        ):
-            nome = check.get(
-                "nome",
-                "Validação sem nome",
-            )
+        checks = pagina.get("checks", [])
+        if not isinstance(checks, list):
+            continue
 
-            categoria = check.get(
-                "categoria",
-                "Geral",
-            )
+        for check in checks:
+            if not isinstance(check, dict):
+                continue
+
+            nome = check.get("nome") or "Validação sem nome"
+            categoria = check.get("categoria") or "Geral"
 
             status = normalizar_status(
                 check.get("status", "error")
             )
-
             observacao = normalizar_observacao(
                 check.get("observacao", "")
             )
-
             evidencias_check = obter_evidencias_check(check)
 
             if nome not in agrupados:
@@ -121,124 +164,86 @@ def consolidar_checks(
                 }
 
             item_atual = agrupados[nome]
-            prioridade_nova = STATUS_PRIORIDADE[status]
-            prioridade_atual = STATUS_PRIORIDADE[
-                item_atual["status"]
-            ]
 
-            if prioridade_nova > prioridade_atual:
+            if (
+                STATUS_PRIORIDADE[status]
+                > STATUS_PRIORIDADE[item_atual["status"]]
+            ):
                 item_atual["status"] = status
 
-            # Avisos também precisam aparecer no prontuário: não podem
-            # elevar o status para warning e deixar a observação vazia.
-            if status in {
-                "warning",
-                "rejected",
-                "error",
-            }:
+            if status in {"warning", "rejected", "error"}:
                 texto_ocorrencia = url
 
                 if observacao:
                     texto_ocorrencia = f"{url} — {observacao}"
 
-                item_atual["ocorrencias"].append(
-                    texto_ocorrencia
-                )
+                item_atual["ocorrencias"].append(texto_ocorrencia)
 
-            # Mantém evidências visuais somente para falhas efetivas,
-            # preservando o comportamento anterior para error/rejected.
             if status in {"rejected", "error"}:
                 if evidencias_check:
-                    item_atual["imgs"].extend(
-                        evidencias_check
-                    )
+                    item_atual["imgs"].extend(evidencias_check)
                 elif screenshot_pagina:
-                    item_atual["imgs"].append(
-                        screenshot_pagina
-                    )
+                    item_atual["imgs"].append(screenshot_pagina)
 
     resultado: dict[str, dict[str, Any]] = {}
 
     for nome, dados in agrupados.items():
-        ocorrencias_unicas = list(
-            dict.fromkeys(dados["ocorrencias"])
-        )
-
-        imagens_unicas = list(
-            dict.fromkeys(dados["imgs"])
-        )
-
         resultado[nome] = {
             "categoria": dados["categoria"],
-            "status": dados["status"],
-            "obs": "\n".join(ocorrencias_unicas),
-            "imgs": imagens_unicas,
+            "status": normalizar_status(dados["status"]),
+            "obs": "\n".join(
+                deduplicar_textos(dados["ocorrencias"])
+            ),
+            "imgs": deduplicar_textos(dados["imgs"]),
         }
 
     return resultado
 
 
 def consolidar_checks_globais(
-    checks_globais: list[
-        dict[str, Any]
-    ],
+    checks_globais: list[dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
-    resultado: dict[
-        str,
-        dict[str, Any]
-    ] = {}
+    resultado: dict[str, dict[str, Any]] = {}
 
     for check in checks_globais:
-        nome = check.get(
-            "nome",
-            "Validação global sem nome",
-        )
+        if not isinstance(check, dict):
+            continue
 
-        categoria = check.get(
-            "categoria",
-            "Geral",
-        )
+        nome = check.get("nome") or "Validação global sem nome"
+        categoria = check.get("categoria") or "Geral"
 
         status = normalizar_status(
             check.get("status", "error")
         )
-
         observacao = normalizar_observacao(
             check.get("observacao", "")
         )
 
-        imagens = check.get(
-            "imgs",
-            [],
-        )
-
-        if not isinstance(
-            imagens,
-            list,
-        ):
+        imagens = check.get("imgs", [])
+        if not isinstance(imagens, list):
             imagens = []
 
-        resultado[nome] = {
+        item_novo = {
             "categoria": categoria,
             "status": status,
             "obs": observacao,
-            "imgs": list(
-                dict.fromkeys(
-                    imagem
-                    for imagem in imagens
-                    if isinstance(imagem, str) and imagem
-                )
-            ),
+            "imgs": deduplicar_textos(imagens),
         }
+
+        if nome in resultado:
+            resultado[nome] = combinar_itens(
+                resultado[nome],
+                item_novo,
+            )
+        else:
+            resultado[nome] = item_novo
 
     return resultado
 
 
 def gerar_itens_prontuario(
     paginas: list[dict[str, Any]],
-    checks_globais: list[
-        dict[str, Any]
-    ] | None = None,
+    checks_globais: list[dict[str, Any]] | None = None,
 ) -> dict[str, dict[str, Any]]:
     itens = consolidar_checks(paginas)
 
@@ -246,6 +251,22 @@ def gerar_itens_prontuario(
         checks_globais or []
     )
 
-    itens.update(itens_globais)
+    for nome, item_global in itens_globais.items():
+        if nome in itens:
+            itens[nome] = combinar_itens(
+                itens[nome],
+                item_global,
+            )
+        else:
+            itens[nome] = item_global
 
-    return itens
+    # Mantém exatamente as quatro chaves esperadas pelo prontuário.
+    return {
+        nome: {
+            "categoria": item["categoria"],
+            "status": item["status"],
+            "obs": item["obs"],
+            "imgs": item["imgs"],
+        }
+        for nome, item in itens.items()
+    }

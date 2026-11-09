@@ -588,6 +588,7 @@ MAPEAMENTO_DIRETO_PRONTUARIO = {
     "Links de contatos clicáveis e funcionais": (
         "Links de números clicáveis e funcionais"
     ),
+    "Google Maps carregando e funcional": "Google Maps - Carregando e funcional",
     "Phone Numbers - Formatting": (
         "Texto Formatação - Números de Telefone "
         "(Ex: 11 99999-9999/11 5555-5555)"
@@ -608,7 +609,6 @@ ITENS_DIRETOS_PRONTUARIO = {
     "CTA - Botão WhatsApp",
     "Links de números clicáveis e funcionais",
     "Emails clicáveis e funcionais (mailto:)",
-    "Google Maps carregando e funcional",
     "Nenhum link ou botão quebrado (404/500)",
     "Lorem Ipsum",
     "H1 Missing",
@@ -667,162 +667,212 @@ GRUPOS_PRONTUARIO = {
 }
 
 
-def normalizar_status_prontuario(
-    status: str,
-) -> str:
-    if status == "approved":
-        return "approved"
 
-    if status == "rejected":
-        return "rejected"
+def normalizar_status_prontuario(status):
+    status = status.strip().lower() if isinstance(status, str) else ""
 
-    return "warning"
+    if status in {"approved", "warning", "error", "rejected"}:
+        return status
+
+    return "error"
 
 
-def combinar_itens_prontuario(
-    nomes_checks: list[str],
-    itens: dict[str, dict[str, Any]],
-) -> dict[str, Any] | None:
-    resultados = [
-        (
-            nome,
-            itens[nome],
-        )
+def combinar_itens_prontuario(nomes_checks, itens):
+    encontrados = [
+        (nome, itens[nome])
         for nome in nomes_checks
-        if nome in itens
+        if nome in itens and isinstance(itens[nome], dict)
     ]
 
-    if not resultados:
+    if not encontrados:
         return None
 
-    checks_ausentes = [
-        nome
-        for nome in nomes_checks
-        if nome not in itens
+    prioridade = {
+        "approved": 1,
+        "warning": 2,
+        "error": 3,
+        "rejected": 4,
+    }
+
+    resultados = [
+        (nome, resultado, normalizar_status_prontuario(
+            resultado.get("status", "")
+        ))
+        for nome, resultado in encontrados
     ]
 
-    statuses = [
-        normalizar_status_prontuario(
-            str(
-                resultado.get(
-                    "status",
-                    "",
-                )
-            )
-        )
-        for _, resultado in resultados
+    status_final = max(
+        (status for _, _, status in resultados),
+        key=lambda status: prioridade[status],
+    )
+
+    ausentes = [
+    nome
+    for nome in nomes_checks
+    if nome not in itens or not isinstance(itens.get(nome), dict)
     ]
 
-    if "rejected" in statuses:
-        status_final = "rejected"
-
-    elif (
-        "warning" in statuses
-        or checks_ausentes
-    ):
+    if ausentes and prioridade[status_final] < prioridade["warning"]:
         status_final = "warning"
 
-    else:
-        status_final = "approved"
+    observacoes = []
 
-    observacoes: list[str] = []
+    for nome, resultado, _ in resultados:
+        observacao = resultado.get("obs", "")
+        if isinstance(observacao, str) and observacao.strip():
+            observacoes.append(f"{nome}:\n{observacao.strip()}")
 
-    for nome, resultado in resultados:
-        observacao = str(
-            resultado.get(
-                "obs",
-                "",
-            )
-        ).strip()
-
-        if observacao:
-            observacoes.append(
-                f"{nome}:\n{observacao}"
-            )
-
-    if checks_ausentes:
+    if ausentes:
         observacoes.append(
-            "Validação automática parcial. "
-            "Checks não encontrados: "
-            + ", ".join(
-                checks_ausentes
-            )
-            + "."
+            "Checks não encontrados: " + ", ".join(ausentes)
         )
+
+    imagens = []
+    imagens_vistas = set()
+
+    for _, resultado, _ in resultados:
+        lista = resultado.get("imgs", [])
+        if not isinstance(lista, list):
+            continue
+
+        for imagem in lista:
+            if (
+                isinstance(imagem, str)
+                and imagem.strip()
+                and imagem not in imagens_vistas
+            ):
+                imagens_vistas.add(imagem)
+                imagens.append(imagem)
 
     return {
         "status": status_final,
-        "obs": "\n\n".join(
-            observacoes
-        ),
-        "imgs": [],
+        "obs": "\n\n".join(observacoes),
+        "imgs": imagens,
     }
 
 
-def gerar_itens_importacao_prontuario(
-    itens: dict[str, dict[str, Any]],
-) -> dict[str, dict[str, Any]]:
-    itens_importacao: dict[
-        str,
-        dict[str, Any],
-    ] = {}
+def _deduplicar_textos_importacao(valores):
+    resultado = []
+    vistos = set()
 
-    for nome, resultado in itens.items():
-        nome_prontuario = (
-            MAPEAMENTO_DIRETO_PRONTUARIO.get(
-                nome,
-                nome,
-            )
+    for valor in valores:
+        if not isinstance(valor, str):
+            continue
+
+        texto = valor.strip()
+        if texto and texto not in vistos:
+            vistos.add(texto)
+            resultado.append(texto)
+
+    return resultado
+
+
+
+def _combinar_itens_importacao(item_existente, item_novo):
+    prioridade = {
+        "approved": 1,
+        "warning": 2,
+        "error": 3,
+        "rejected": 4,
+    }
+
+    existente = dict(item_existente or {})
+    novo = dict(item_novo or {})
+
+    status_candidatos = []
+
+    for item in (existente, novo):
+        if "status" not in item or item.get("status") is None:
+            continue
+
+        status_candidatos.append(
+            normalizar_status_prontuario(item["status"])
         )
+
+    status_final = (
+        max(status_candidatos, key=lambda status: prioridade[status])
+        if status_candidatos
+        else "error"
+    )
+
+    observacoes = _deduplicar_textos_importacao([
+        existente.get("obs", ""),
+        novo.get("obs", ""),
+    ])
+
+    imagens = []
+    imagens_vistas = set()
+
+    for lista in (existente.get("imgs", []), novo.get("imgs", [])):
+        if not isinstance(lista, list):
+            continue
+
+        for imagem in lista:
+            if (
+                isinstance(imagem, str)
+                and imagem.strip()
+                and imagem not in imagens_vistas
+            ):
+                imagens_vistas.add(imagem)
+                imagens.append(imagem)
+
+    return {
+        "status": status_final,
+        "obs": "\n\n".join(observacoes),
+        "imgs": imagens,
+    }
+
+
+def gerar_itens_importacao_prontuario(itens):
+    itens_importacao = {}
+
+    for nome, resultado in (itens or {}).items():
+        if not isinstance(resultado, dict):
+            continue
+
+        nome_prontuario = MAPEAMENTO_DIRETO_PRONTUARIO.get(nome, nome)
 
         nome_valido = (
             nome in ITENS_DIRETOS_PRONTUARIO
-            or nome
-            in MAPEAMENTO_DIRETO_PRONTUARIO
+            or nome in MAPEAMENTO_DIRETO_PRONTUARIO
         )
 
         if not nome_valido:
             continue
 
-        itens_importacao[
-            nome_prontuario
-        ] = {
-            "status": (
-                normalizar_status_prontuario(
-                    str(
-                        resultado.get(
-                            "status",
-                            "",
-                        )
-                    )
-                )
+        item_novo = {
+            "status": normalizar_status_prontuario(
+                resultado.get("status", "")
             ),
-            "obs": str(
-                resultado.get(
-                    "obs",
-                    "",
-                )
+            "obs": (
+                resultado.get("obs", "")
+                if isinstance(resultado.get("obs", ""), str)
+                else ""
             ),
-            "imgs": [],
+            "imgs": (
+                resultado.get("imgs", [])
+                if isinstance(resultado.get("imgs", []), list)
+                else []
+            ),
         }
 
-    for (
-        nome_prontuario,
-        nomes_checks,
-    ) in GRUPOS_PRONTUARIO.items():
-        resultado_combinado = (
-            combinar_itens_prontuario(
-                nomes_checks=nomes_checks,
-                itens=itens,
+        itens_importacao[nome_prontuario] = (
+            _combinar_itens_importacao(
+                itens_importacao.get(nome_prontuario),
+                item_novo,
             )
         )
 
-        if resultado_combinado is None:
+    for nome_grupo, nomes_checks in GRUPOS_PRONTUARIO.items():
+        item_grupo = combinar_itens_prontuario(nomes_checks, itens)
+
+        if item_grupo is None:
             continue
 
-        itens_importacao[
-            nome_prontuario
-        ] = resultado_combinado
+        itens_importacao[nome_grupo] = _combinar_itens_importacao(
+            itens_importacao.get(nome_grupo),
+            item_grupo,
+        )
 
     return itens_importacao
 
