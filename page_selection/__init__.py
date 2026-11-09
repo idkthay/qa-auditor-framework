@@ -1,7 +1,7 @@
-from selectors.page_classifier import (
+from page_selection.page_classifier import (
     classificar_pagina,
 )
-from selectors.page_selector import (
+from page_selection.page_selector import (
     selecionar_paginas,
 )
 

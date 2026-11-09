@@ -1,0 +1,103 @@
+    resultado = []
+    vistos = set()
+    for valor in valores:
+        if not isinstance(valor, str):
+            continue
+        texto = valor.strip()
+        if texto and texto not in vistos:
+            vistos.add(texto)
+            resultado.append(texto)
+    return resultado
+
+
+def _combinar_itens_importacao(item_existente, item_novo):
+    """Combina resultados sem permitir que um status menos crítico sobrescreva outro."""
+    prioridade = {"approved": 1, "warning": 2, "rejected": 3}
+    existente = dict(item_existente or {})
+    novo = dict(item_novo or {})
+
+    status_existente = normalizar_status_prontuario(str(existente.get("status", "")))
+    status_novo = normalizar_status_prontuario(str(novo.get("status", "")))
+    status_final = max(
+        (status_existente, status_novo),
+        key=lambda status: prioridade.get(status, 0),
+    )
+
+    observacoes = _deduplicar_textos_importacao([
+        str(existente.get("obs", "")),
+        str(novo.get("obs", "")),
+    ])
+
+    imagens = []
+    imagens_vistas = set()
+    for lista in (existente.get("imgs", []), novo.get("imgs", [])):
+        if not isinstance(lista, list):
+            continue
+        for imagem in lista:
+            if isinstance(imagem, str) and imagem.strip() and imagem not in imagens_vistas:
+                imagens_vistas.add(imagem)
+                imagens.append(imagem)
+
+    return {"status": status_final, "obs": "\\n".join(observacoes), "imgs": imagens}
+
+
+def gerar_itens_importacao_prontuario(itens):
+    """Mapeia checks técnicos para os nomes oficiais sem perder falhas ou observações."""
+    itens_importacao = {}
+
+    for nome, resultado in (itens or {}).items():
+        nome_prontuario = MAPEAMENTO_DIRETO_PRONTUARIO.get(nome, nome)
+        nome_valido = (
+            nome in ITENS_DIRETOS_PRONTUARIO
+            or nome in MAPEAMENTO_DIRETO_PRONTUARIO
+        )
+        if not nome_valido:
+            continue
+
+        item_novo = {
+            "status": normalizar_status_prontuario(str(resultado.get("status", ""))),
+            "obs": str(resultado.get("obs", "")),
+            "imgs": resultado.get("imgs", [])
+            if isinstance(resultado.get("imgs", []), list)
+            else [],
+        }
+        itens_importacao[nome_prontuario] = _combinar_itens_importacao(
+            itens_importacao.get(nome_prontuario), item_novo
+        )
+
+    for nome_grupo, nomes_checks in GRUPOS_PRONTUARIO.items():
+        item_grupo = combinar_itens_prontuario(nomes_checks, itens)
+        if item_grupo is None:
+            continue
+        itens_importacao[nome_grupo] = _combinar_itens_importacao(
+            itens_importacao.get(nome_grupo), item_grupo
+        )
+
+    return itens_importacao
+
+
+'''
+
+updated = source[:start_match.start()] + replacement + source[start_match.end():]
+old_mapping_line = '    "Links de contatos clicáveis e funcionais": "Links de números clicáveis e funcionais",'
+new_mapping_line = old_mapping_line + '\n    "Google Maps carregando e funcional": "Google Maps - Carregando e funcional",'
+if '"Google Maps carregando e funcional": "Google Maps - Carregando e funcional"' not in updated:
+    if old_mapping_line not in updated:
+        raise SystemExit(
+            "ERRO: não encontrei a linha esperada de mapeamento para inserir Google Maps. "
+            "Nenhum arquivo foi alterado."
+        )
+    updated = updated.replace(old_mapping_line, new_mapping_line, 1)
+
+# Evita manter o nome técnico de Google Maps também como destino direto.
+updated = updated.replace('    "Google Maps carregando e funcional",\n', '', 1)
+
+# Confere sintaxe antes de gravar qualquer mudança.
+compile(updated, str(TARGET), "exec")
+backup = TARGET.with_name(f"auditor.py.pre_prontuario_fix_{datetime.now():%Y%m%d_%H%M%S}.bak")
+shutil.copy2(TARGET, backup)
+TARGET.write_text(updated, encoding="utf-8", newline="\n")
+print("Correção aplicada e sintaxe Python validada.")
+print(f"Arquivo atualizado: {TARGET}")
+print(f"Backup criado: {backup}")
+print("Nenhuma auditoria foi executada; relatórios não foram alterados.")

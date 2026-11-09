@@ -1,0 +1,1117 @@
+warning: in the working copy of 'core/auditor.py', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/checks/registry.py b/checks/registry.py[m
+[1mindex a7d4c14..ad4e289 100644[m
+[1m--- a/checks/registry.py[m
+[1m+++ b/checks/registry.py[m
+[36m@@ -1,3 +1,4 @@[m
+[32m+[m
+ from checks.analytics_check import ([m
+     GoogleAnalyticsGa4Check,[m
+ )[m
+[36m@@ -19,9 +20,11 @@[m [mfrom checks.contact_format_check import ([m
+ )[m
+ from checks.content_check import LoremIpsumCheck[m
+ from checks.form_check import ([m
+[32m+[m[32m    FormActionCheck,[m
+     FormFieldIdentificationCheck,[m
+     FormMethodCheck,[m
+     FormPresenceCheck,[m
+[32m+[m[32m    FormRequiredFieldsCheck,[m
+     FormSubmitButtonCheck,[m
+     RecaptchaConflictCheck,[m
+     RecaptchaPresenceCheck,[m
+[36m@@ -174,8 +177,10 @@[m [mdef obter_checks() -> list[BaseCheck]:[m
+ [m
+         # Formulários[m
+         FormPresenceCheck(),[m
+[32m+[m[32m        FormActionCheck(),[m
+         FormMethodCheck(),[m
+         FormSubmitButtonCheck(),[m
+[32m+[m[32m        FormRequiredFieldsCheck(),[m
+         FormFieldIdentificationCheck(),[m
+         RecaptchaPresenceCheck(),[m
+         RecaptchaConflictCheck(),[m
+[36m@@ -202,4 +207,4 @@[m [mdef obter_checks() -> list[BaseCheck]:[m
+         MissingReferrerPolicyCheck(),[m
+         MissingContentSecurityPolicyCheck(),[m
+         MissingXContentTypeOptionsCheck(),[m
+[31m-    ][m
+\ No newline at end of file[m
+[32m+[m[32m    ][m
+[1mdiff --git a/core/auditor.py b/core/auditor.py[m
+[1mindex 54197f8..49ec3a1 100644[m
+[1m--- a/core/auditor.py[m
+[1m+++ b/core/auditor.py[m
+[36m@@ -1,565 +1,5 @@[m
+[31m-from __future__ import annotations[m
+ [m
+[31m-import json[m
+[31m-import webbrowser[m
+[31m-from datetime import datetime[m
+[31m-from pathlib import Path[m
+ from typing import Any[m
+[31m-from urllib.parse import urlparse[m
+[31m-[m
+[31m-from playwright.sync_api import ([m
+[31m-    BrowserContext,[m
+[31m-    Error as PlaywrightError,[m
+[31m-    Page,[m
+[31m-    sync_playwright,[m
+[31m-)[m
+[31m-[m
+[31m-from checks.global_duplicate_check import ([m
+[31m-    executar_checks_globais,[m
+[31m-)[m
+[31m-from checks.registry import obter_checks[m
+[31m-from collectors.page_collector import coletar_page_data[m
+[31m-from config.settings import ([m
+[31m-    HEADLESS,[m
+[31m-    LIMITE_DESCOBERTA,[m
+[31m-    LIMITE_MPIS,[m
+[31m-    REPORTS_DIR,[m
+[31m-    TEMPO_ESPERA_PAGINA,[m
+[31m-    TIMEOUT_NAVEGACAO,[m
+[31m-    VIEWPORT_DESKTOP,[m
+[31m-)[m
+[31m-from crawler.internal_crawler import executar_crawler[m
+[31m-from exporters.html_exporter import exportar_relatorio_html[m
+[31m-from models.page_data import PageData[m
+[31m-from reporters.prontuario_reporter import ([m
+[31m-    gerar_itens_prontuario,[m
+[31m-)[m
+[31m-from selectors.page_selector import ([m
+[31m-    imprimir_resumo_selecao,[m
+[31m-    selecionar_paginas,[m
+[31m-)[m
+[31m-from utils.url_helper import eh_url_interna[m
+[31m-[m
+[31m-[m
+[31m-def preparar_pastas() -> None:[m
+[31m-    REPORTS_DIR.mkdir([m
+[31m-        parents=True,[m
+[31m-        exist_ok=True,[m
+[31m-    )[m
+[31m-[m
+[31m-[m
+[31m-def executar_checks([m
+[31m-    page: Page,[m
+[31m-    contexto: dict[str, Any],[m
+[31m-) -> list[dict[str, Any]]:[m
+[31m-    resultados: list[[m
+[31m-        dict[str, Any][m
+[31m-    ] = [][m
+[31m-[m
+[31m-    for check in obter_checks():[m
+[31m-        try:[m
+[31m-            resultado = check.executar([m
+[31m-                page=page,[m
+[31m-                contexto=contexto,[m
+[31m-            )[m
+[31m-[m
+[31m-        except Exception as erro:[m
+[31m-            resultado = check.resultado([m
+[31m-                status="error",[m
+[31m-                observacao=([m
+[31m-                    "Erro ao executar "[m
+[31m-                    f"a validação: {erro}"[m
+[31m-                ),[m
+[31m-            )[m
+[31m-[m
+[31m-        resultados.append([m
+[31m-            resultado[m
+[31m-        )[m
+[31m-[m
+[31m-    return resultados[m
+[31m-[m
+[31m-[m
+[31m-def criar_contexto([m
+[31m-    page_data: PageData,[m
+[31m-    url_principal: str,[m
+[31m-) -> dict[str, Any]:[m
+[31m-    return {[m
+[31m-        "status_http": ([m
+[31m-            page_data.status_http[m
+[31m-        ),[m
+[31m-        "url_solicitada": ([m
+[31m-            page_data.url_solicitada[m
+[31m-        ),[m
+[31m-        "url_final": ([m
+[31m-            page_data.url_final[m
+[31m-        ),[m
+[31m-        "url_principal": ([m
+[31m-            url_principal[m
+[31m-        ),[m
+[31m-        "page_data": ([m
+[31m-            page_data[m
+[31m-        ),[m
+[31m-    }[m
+[31m-[m
+[31m-[m
+[31m-def criar_resultado_pagina([m
+[31m-    url: str,[m
+[31m-) -> dict[str, Any]:[m
+[31m-    return {[m
+[31m-        "url_solicitada": url,[m
+[31m-        "url_final": None,[m
+[31m-        "status_http": None,[m
+[31m-        "erro_navegacao": "",[m
+[31m-        "ignorada": False,[m
+[31m-        "motivo_ignorada": "",[m
+[31m-        "page_data": {},[m
+[31m-        "checks": [],[m
+[31m-    }[m
+[31m-[m
+[31m-[m
+[31m-def auditar_pagina([m
+[31m-    page: Page,[m
+[31m-    url: str,[m
+[31m-    numero: int,[m
+[31m-    total: int,[m
+[31m-    url_principal: str,[m
+[31m-) -> dict[str, Any]:[m
+[31m-    print([m
+[31m-        f"\n🌐 Auditando "[m
+[31m-        f"({numero}/{total}): "[m
+[31m-        f"{url}"[m
+[31m-    )[m
+[31m-[m
+[31m-    resultado_pagina = ([m
+[31m-        criar_resultado_pagina([m
+[31m-            url[m
+[31m-        )[m
+[31m-    )[m
+[31m-[m
+[31m-    if not eh_url_interna([m
+[31m-        url=url,[m
+[31m-        url_principal=url_principal,[m
+[31m-    ):[m
+[31m-        resultado_pagina.update([m
+[31m-            {[m
+[31m-                "url_final": url,[m
+[31m-                "ignorada": True,[m
+[31m-                "motivo_ignorada": ([m
+[31m-                    "URL externa ignorada "[m
+[31m-                    "antes da navegação."[m
+[31m-                ),[m
+[31m-            }[m
+[31m-        )[m
+[31m-[m
+[31m-        print([m
+[31m-            "   ⚠️ URL externa ignorada:"[m
+[31m-        )[m
+[31m-[m
+[31m-        print([m
+[31m-            f"   {url}"[m
+[31m-        )[m
+[31m-[m
+[31m-        return resultado_pagina[m
+[31m-[m
+[31m-    try:[m
+[31m-        response = page.goto([m
+[31m-            url,[m
+[31m-            wait_until="domcontentloaded",[m
+[31m-            timeout=TIMEOUT_NAVEGACAO,[m
+[31m-        )[m
+[31m-[m
+[31m-        page.wait_for_timeout([m
+[31m-            TEMPO_ESPERA_PAGINA[m
+[31m-        )[m
+[31m-[m
+[31m-        url_final_navegacao = ([m
+[31m-            page.url[m
+[31m-        )[m
+[31m-[m
+[31m-        status_http = ([m
+[31m-            response.status[m
+[31m-            if response[m
+[31m-            else None[m
+[31m-        )[m
+[31m-[m
+[31m-        if not eh_url_interna([m
+[31m-            url=url_final_navegacao,[m
+[31m-            url_principal=url_principal,[m
+[31m-        ):[m
+[31m-            resultado_pagina.update([m
+[31m-                {[m
+[31m-                    "url_final": ([m
+[31m-                        url_final_navegacao[m
+[31m-                    ),[m
+[31m-                    "status_http": ([m
+[31m-                        status_http[m
+[31m-                    ),[m
+[31m-                    "ignorada": True,[m
+[31m-                    "motivo_ignorada": ([m
+[31m-                        "A URL interna "[m
+[31m-                        "redirecionou para "[m
+[31m-                        "um domínio externo."[m
+[31m-                    ),[m
+[31m-                }[m
+[31m-            )[m
+[31m-[m
+[31m-            print([m
+[31m-                "   ⚠️ Redirecionamento "[m
+[31m-                "externo ignorado:"[m
+[31m-            )[m
+[31m-[m
+[31m-            print([m
+[31m-                f"   {url_final_navegacao}"[m
+[31m-            )[m
+[31m-[m
+[31m-            return resultado_pagina[m
+[31m-[m
+[31m-        page_data = coletar_page_data([m
+[31m-            page=page,[m
+[31m-            response=response,[m
+[31m-            url_solicitada=url,[m
+[31m-        )[m
+[31m-[m
+[31m-        contexto = criar_contexto([m
+[31m-            page_data=page_data,[m
+[31m-            url_principal=url_principal,[m
+[31m-        )[m
+[31m-[m
+[31m-        resultados = executar_checks([m
+[31m-            page=page,[m
+[31m-            contexto=contexto,[m
+[31m-        )[m
+[31m-[m
+[31m-        resultado_pagina.update([m
+[31m-            {[m
+[31m-                "url_final": ([m
+[31m-                    page_data.url_final[m
+[31m-                ),[m
+[31m-                "status_http": ([m
+[31m-                    page_data.status_http[m
+[31m-                ),[m
+[31m-                "page_data": ([m
+[31m-                    page_data.to_dict([m
+[31m-                        include_html=False[m
+[31m-                    )[m
+[31m-                ),[m
+[31m-                "checks": resultados,[m
+[31m-            }[m
+[31m-        )[m
+[31m-[m
+[31m-    except PlaywrightError as erro:[m
+[31m-        resultado_pagina[[m
+[31m-            "erro_navegacao"[m
+[31m-        ] = str([m
+[31m-            erro[m
+[31m-        )[m
+[31m-[m
+[31m-        print([m
+[31m-            "   ❌ Falha ao acessar "[m
+[31m-            "a página."[m
+[31m-        )[m
+[31m-[m
+[31m-        print([m
+[31m-            f"   {erro}"[m
+[31m-        )[m
+[31m-[m
+[31m-    except Exception as erro:[m
+[31m-        resultado_pagina[[m
+[31m-            "erro_navegacao"[m
+[31m-        ] = str([m
+[31m-            erro[m
+[31m-        )[m
+[31m-[m
+[31m-        print([m
+[31m-            "   ❌ Erro inesperado "[m
+[31m-            "durante a auditoria."[m
+[31m-        )[m
+[31m-[m
+[31m-        print([m
+[31m-            f"   {erro}"[m
+[31m-        )[m
+[31m-[m
+[31m-    return resultado_pagina[m
+[31m-[m
+[31m-[m
+[31m-def auditar_urls([m
+[31m-    context: BrowserContext,[m
+[31m-    urls: list[str],[m
+[31m-    url_principal: str,[m
+[31m-) -> tuple[[m
+[31m-    list[dict[str, Any]],[m
+[31m-    list[dict[str, Any]],[m
+[31m-]:[m
+[31m-    paginas_auditadas: list[[m
+[31m-        dict[str, Any][m
+[31m-    ] = [][m
+[31m-[m
+[31m-    urls_ignoradas: list[[m
+[31m-        dict[str, Any][m
+[31m-    ] = [][m
+[31m-[m
+[31m-    page = context.new_page()[m
+[31m-[m
+[31m-    try:[m
+[31m-        for indice, url in enumerate([m
+[31m-            urls,[m
+[31m-            start=1,[m
+[31m-        ):[m
+[31m-            resultado = auditar_pagina([m
+[31m-                page=page,[m
+[31m-                url=url,[m
+[31m-                numero=indice,[m
+[31m-                total=len(urls),[m
+[31m-                url_principal=url_principal,[m
+[31m-            )[m
+[31m-[m
+[31m-            if resultado.get([m
+[31m-                "ignorada",[m
+[31m-                False,[m
+[31m-            ):[m
+[31m-                urls_ignoradas.append([m
+[31m-                    resultado[m
+[31m-                )[m
+[31m-[m
+[31m-                continue[m
+[31m-[m
+[31m-            paginas_auditadas.append([m
+[31m-                resultado[m
+[31m-            )[m
+[31m-[m
+[31m-    finally:[m
+[31m-        page.close()[m
+[31m-[m
+[31m-    return ([m
+[31m-        paginas_auditadas,[m
+[31m-        urls_ignoradas,[m
+[31m-    )[m
+[31m-[m
+[31m-[m
+[31m-def mostrar_resumo([m
+[31m-    paginas: list[dict[str, Any]],[m
+[31m-    checks_globais: list[[m
+[31m-        dict[str, Any][m
+[31m-    ],[m
+[31m-    urls_ignoradas: list[[m
+[31m-        dict[str, Any][m
+[31m-    ],[m
+[31m-    selecao_paginas: dict[str, Any],[m
+[31m-) -> None:[m
+[31m-    aprovados = 0[m
+[31m-    rejeitados = 0[m
+[31m-    erros = 0[m
+[31m-[m
+[31m-    for pagina in paginas:[m
+[31m-        if pagina.get([m
+[31m-            "erro_navegacao"[m
+[31m-        ):[m
+[31m-            erros += 1[m
+[31m-[m
+[31m-        for check in pagina.get([m
+[31m-            "checks",[m
+[31m-            [],[m
+[31m-        ):[m
+[31m-            status = check.get([m
+[31m-                "status"[m
+[31m-            )[m
+[31m-[m
+[31m-            if status == "approved":[m
+[31m-                aprovados += 1[m
+[31m-[m
+[31m-            elif status == "rejected":[m
+[31m-                rejeitados += 1[m
+[31m-[m
+[31m-            else:[m
+[31m-                erros += 1[m
+[31m-[m
+[31m-    for check in checks_globais:[m
+[31m-        status = check.get([m
+[31m-            "status",[m
+[31m-            "error",[m
+[31m-        )[m
+[31m-[m
+[31m-        if status == "approved":[m
+[31m-            aprovados += 1[m
+[31m-[m
+[31m-        elif status == "rejected":[m
+[31m-            rejeitados += 1[m
+[31m-[m
+[31m-        else:[m
+[31m-            erros += 1[m
+[31m-[m
+[31m-    print([m
+[31m-        "\n" + "=" * 55[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        "RESUMO DA AUDITORIA"[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        "=" * 55[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        "URLs descobertas: "[m
+[31m-        f"{selecao_paginas.get([m
+[31m-            'quantidade_descobertas',[m
+[31m-            0,[m
+[31m-        )}"[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        "URLs selecionadas: "[m
+[31m-        f"{selecao_paginas.get([m
+[31m-            'quantidade_selecionadas',[m
+[31m-            0,[m
+[31m-        )}"[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        "MPIs selecionadas: "[m
+[31m-        f"{selecao_paginas.get([m
+[31m-            'quantidade_mpis',[m
+[31m-            0,[m
+[31m-        )}"[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        "URLs internas auditadas: "[m
+[31m-        f"{len(paginas)}"[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        "URLs externas ignoradas: "[m
+[31m-        f"{len(urls_ignoradas)}"[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        "Checks globais: "[m
+[31m-        f"{len(checks_globais)}"[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        f"Checks aprovados: {aprovados}"[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        f"Checks rejeitados: {rejeitados}"[m
+[31m-    )[m
+[31m-[m
+[31m-    print([m
+[31m-        f"Erros de execução: {erros}"[m
+[31m-    )[m
+[31m-[m
+[31m-[m
+[31m-def salvar_relatorio_tecnico([m
+[31m-    url_inicial: str,[m
+[31m-    paginas: list[dict[str, Any]],[m
+[31m-    checks_globais: list[[m
+[31m-        dict[str, Any][m
+[31m-    ],[m
+[31m-    urls_ignoradas: list[[m
+[31m-        dict[str, Any][m
+[31m-    ],[m
+[31m-    selecao_paginas: dict[str, Any],[m
+[31m-) -> Path:[m
+[31m-    relatorio = {[m
+[31m-        "info": {[m
+[31m-            "url_inicial": url_inicial,[m
+[31m-            "dominio_principal": ([m
+[31m-                urlparse([m
+[31m-                    url_inicial[m
+[31m-                ).netloc[m
+[31m-            ),[m
+[31m-            "data_execucao": ([m
+[31m-                datetime.now().isoformat([m
+[31m-                    timespec="seconds"[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "quantidade_paginas": len([m
+[31m-                paginas[m
+[31m-            ),[m
+[31m-            "quantidade_urls_descobertas": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "quantidade_descobertas",[m
+[31m-                    0,[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "quantidade_urls_selecionadas": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "quantidade_selecionadas",[m
+[31m-                    0,[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "quantidade_mpis_selecionadas": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "quantidade_mpis",[m
+[31m-                    0,[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "quantidade_urls_externas_ignoradas": ([m
+[31m-                len([m
+[31m-                    urls_ignoradas[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "quantidade_checks_globais": ([m
+[31m-                len([m
+[31m-                    checks_globais[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "limite_descoberta": ([m
+[31m-                LIMITE_DESCOBERTA[m
+[31m-            ),[m
+[31m-            "limite_mpis": ([m
+[31m-                LIMITE_MPIS[m
+[31m-            ),[m
+[31m-        },[m
+[31m-        "selecao_paginas": {[m
+[31m-            "categorias": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "categorias",[m
+[31m-                    {},[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "categorias_nao_encontradas": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "categorias_nao_encontradas",[m
+[31m-                    [],[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "paginas": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "paginas",[m
+[31m-                    [],[m
+[31m-                )[m
+[31m-            ),[m
+[31m-        },[m
+[31m-        "checks_globais": ([m
+[31m-            checks_globais[m
+[31m-        ),[m
+[31m-        "urls_externas_ignoradas": ([m
+[31m-            urls_ignoradas[m
+[31m-        ),[m
+[31m-        "paginas": paginas,[m
+[31m-    }[m
+[31m-[m
+[31m-    caminho = ([m
+[31m-        REPORTS_DIR[m
+[31m-        / "auditoria_completa.json"[m
+[31m-    )[m
+[31m-[m
+[31m-    with caminho.open([m
+[31m-        "w",[m
+[31m-        encoding="utf-8",[m
+[31m-    ) as arquivo:[m
+[31m-        json.dump([m
+[31m-            relatorio,[m
+[31m-            arquivo,[m
+[31m-            indent=4,[m
+[31m-            ensure_ascii=False,[m
+[31m-        )[m
+[31m-[m
+[31m-    return caminho[m
+ [m
+ [m
+ MAPEAMENTO_DIRETO_PRONTUARIO = {[m
+[36m@@ -585,18 +25,16 @@[m [mMAPEAMENTO_DIRETO_PRONTUARIO = {[m
+         "Máscaras ativas nos campos de entrada "[m
+         "(telefone, CPF, etc.)"[m
+     ),[m
+[31m-    "Links de contatos clicáveis e funcionais": ([m
+[31m-        "Links de números clicáveis e funcionais"[m
+[32m+[m[32m    "Google Maps carregando e funcional": ([m
+[32m+[m[32m        "Google Maps - Carregando e funcional"[m
+     ),[m
+[31m-    "Phone Numbers - Formatting": ([m
+[32m+[m[32m    "Texto Formatação - Números de Telefone": ([m
+         "Texto Formatação - Números de Telefone "[m
+[31m-        "(Ex: 11 99999-9999/11 5555-5555)"[m
+[31m-    ),[m
+[31m-    "Emails - Formatting": ([m
+[31m-        "Texto Formatação - Emails (Ex: email@dominio.com)"[m
+[32m+[m[32m        "(Ex: 11 99999-9999/11 5555-5555) "[m
+     ),[m
+[31m-    "Robots.txt - Existência": ([m
+[31m-        "Configuração do arquivo robots.txt"[m
+[32m+[m[32m    "Texto Formatação - E-mails": ([m
+[32m+[m[32m        "Texto Formatação - Emails "[m
+[32m+[m[32m        "(Ex: email@dominio.com)"[m
+     ),[m
+     "Sitemap XML - Validade": ([m
+         "Sitemap.xml"[m
+[36m@@ -608,7 +46,6 @@[m [mITENS_DIRETOS_PRONTUARIO = {[m
+     "CTA - Botão WhatsApp",[m
+     "Links de números clicáveis e funcionais",[m
+     "Emails clicáveis e funcionais (mailto:)",[m
+[31m-    "Google Maps carregando e funcional",[m
+     "Nenhum link ou botão quebrado (404/500)",[m
+     "Lorem Ipsum",[m
+     "H1 Missing",[m
+[36m@@ -646,8 +83,10 @@[m [mGRUPOS_PRONTUARIO = {[m
+         "e reCAPTCHA ativo (v2 ou v3)"[m
+     ): [[m
+         "Formulário presente",[m
+[32m+[m[32m        "Formulário - Action configurado",[m
+         "Formulário - Método POST",[m
+         "Formulário - Botão de envio",[m
+[32m+[m[32m        "Formulário - Campos obrigatórios",[m
+         "Formulário - Campos identificados",[m
+         "Formulário - reCAPTCHA presente",[m
+         "Formulário - Apenas um tipo de reCAPTCHA",[m
+[36m@@ -659,11 +98,6 @@[m [mGRUPOS_PRONTUARIO = {[m
+     "Mapa do Site": [[m
+         "Mapa do Site no Footer",[m
+     ],[m
+[31m-    "Scroll lateral": [[m
+[31m-        "Responsividade - Desktop 1920px",[m
+[31m-        "Responsividade - Mobile 394px",[m
+[31m-        "Responsividade - Tablet 768px",[m
+[31m-    ],[m
+ }[m
+ [m
+ [m
+[36m@@ -684,10 +118,7 @@[m [mdef combinar_itens_prontuario([m
+     itens: dict[str, dict[str, Any]],[m
+ ) -> dict[str, Any] | None:[m
+     resultados = [[m
+[31m-        ([m
+[31m-            nome,[m
+[31m-            itens[nome],[m
+[31m-        )[m
+[32m+[m[32m        (nome, itens[nome])[m
+         for nome in nomes_checks[m
+         if nome in itens[m
+     ][m
+[36m@@ -703,25 +134,15 @@[m [mdef combinar_itens_prontuario([m
+ [m
+     statuses = [[m
+         normalizar_status_prontuario([m
+[31m-            str([m
+[31m-                resultado.get([m
+[31m-                    "status",[m
+[31m-                    "",[m
+[31m-                )[m
+[31m-            )[m
+[32m+[m[32m            str(resultado.get("status", ""))[m
+         )[m
+         for _, resultado in resultados[m
+     ][m
+ [m
+     if "rejected" in statuses:[m
+         status_final = "rejected"[m
+[31m-[m
+[31m-    elif ([m
+[31m-        "warning" in statuses[m
+[31m-        or checks_ausentes[m
+[31m-    ):[m
+[32m+[m[32m    elif "warning" in statuses or checks_ausentes:[m
+         status_final = "warning"[m
+[31m-[m
+     else:[m
+         status_final = "approved"[m
+ [m
+[36m@@ -729,10 +150,7 @@[m [mdef combinar_itens_prontuario([m
+ [m
+     for nome, resultado in resultados:[m
+         observacao = str([m
+[31m-            resultado.get([m
+[31m-                "obs",[m
+[31m-                "",[m
+[31m-            )[m
+[32m+[m[32m            resultado.get("obs", "")[m
+         ).strip()[m
+ [m
+         if observacao:[m
+[36m@@ -744,17 +162,13 @@[m [mdef combinar_itens_prontuario([m
+         observacoes.append([m
+             "Validação automática parcial. "[m
+             "Checks não encontrados: "[m
+[31m-            + ", ".join([m
+[31m-                checks_ausentes[m
+[31m-            )[m
+[32m+[m[32m            + ", ".join(checks_ausentes)[m
+             + "."[m
+         )[m
+ [m
+     return {[m
+         "status": status_final,[m
+[31m-        "obs": "\n\n".join([m
+[31m-            observacoes[m
+[31m-        ),[m
+[32m+[m[32m        "obs": "\n\n".join(observacoes),[m
+         "imgs": [],[m
+     }[m
+ [m
+[36m@@ -777,336 +191,64 @@[m [mdef gerar_itens_importacao_prontuario([m
+ [m
+         nome_valido = ([m
+             nome in ITENS_DIRETOS_PRONTUARIO[m
+[31m-            or nome[m
+[31m-            in MAPEAMENTO_DIRETO_PRONTUARIO[m
+[32m+[m[32m            or nome in MAPEAMENTO_DIRETO_PRONTUARIO[m
+         )[m
+ [m
+         if not nome_valido:[m
+             continue[m
+ [m
+[31m-        itens_importacao[[m
+[31m-            nome_prontuario[m
+[31m-        ] = {[m
+[31m-            "status": ([m
+[31m-                normalizar_status_prontuario([m
+[31m-                    str([m
+[31m-                        resultado.get([m
+[31m-                            "status",[m
+[31m-                            "",[m
+[31m-                        )[m
+[31m-                    )[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "obs": str([m
+[31m-                resultado.get([m
+[31m-                    "obs",[m
+[31m-                    "",[m
+[31m-                )[m
+[32m+[m[32m        itens_importacao[nome_prontuario] = {[m
+[32m+[m[32m            "status": normalizar_status_prontuario([m
+[32m+[m[32m                str(resultado.get("status", ""))[m
+             ),[m
+[32m+[m[32m            "obs": str(resultado.get("obs", "")),[m
+             "imgs": [],[m
+         }[m
+ [m
+[31m-    for ([m
+[31m-        nome_prontuario,[m
+[31m-        nomes_checks,[m
+[31m-    ) in GRUPOS_PRONTUARIO.items():[m
+[31m-        resultado_combinado = ([m
+[31m-            combinar_itens_prontuario([m
+[31m-                nomes_checks=nomes_checks,[m
+[31m-                itens=itens,[m
+[31m-            )[m
+[31m-        )[m
+[31m-[m
+[31m-        if resultado_combinado is None:[m
+[31m-            continue[m
+[31m-[m
+[31m-        itens_importacao[[m
+[31m-            nome_prontuario[m
+[31m-        ] = resultado_combinado[m
+[31m-[m
+[31m-    return itens_importacao[m
+[31m-[m
+[31m-[m
+[31m-def salvar_prontuario_automatico([m
+[31m-    url_inicial: str,[m
+[31m-    paginas: list[dict[str, Any]],[m
+[31m-    itens: dict[[m
+[31m-        str,[m
+[31m-        dict[str, Any],[m
+[31m-    ],[m
+[31m-    urls_ignoradas: list[[m
+[31m-        dict[str, Any][m
+[31m-    ],[m
+[31m-    selecao_paginas: dict[str, Any],[m
+[31m-) -> Path:[m
+[31m-    itens_importacao = ([m
+[31m-        gerar_itens_importacao_prontuario([m
+[31m-            itens[m
+[31m-        )[m
+[32m+[m[32m    nome_grupo_formularios = ([m
+[32m+[m[32m        "Todos formulários com validação "[m
+[32m+[m[32m        "e reCAPTCHA ativo (v2 ou v3)"[m
+     )[m
+ [m
+[31m-    prontuario = {[m
+[31m-        "info": {[m
+[31m-            "dominio": ([m
+[31m-                urlparse([m
+[31m-                    url_inicial[m
+[31m-                ).netloc[m
+[31m-            ),[m
+[31m-            "data_validacao": ([m
+[31m-                datetime.now()[m
+[31m-                .date()[m
+[31m-                .isoformat()[m
+[31m-            ),[m
+[31m-            "tipo": "AUTOMATICO",[m
+[31m-            "quantidade_paginas": len([m
+[31m-                paginas[m
+[31m-            ),[m
+[31m-            "quantidade_urls_descobertas": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "quantidade_descobertas",[m
+[31m-                    0,[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "quantidade_urls_selecionadas": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "quantidade_selecionadas",[m
+[31m-                    0,[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "quantidade_mpis_selecionadas": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "quantidade_mpis",[m
+[31m-                    0,[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "quantidade_urls_externas_ignoradas": ([m
+[31m-                len([m
+[31m-                    urls_ignoradas[m
+[31m-                )[m
+[31m-            ),[m
+[31m-        },[m
+[31m-        "selecao_paginas": {[m
+[31m-            "categorias": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "categorias",[m
+[31m-                    {},[m
+[31m-                )[m
+[31m-            ),[m
+[31m-            "categorias_nao_encontradas": ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "categorias_nao_encontradas",[m
+[31m-                    [],[m
+[31m-                )[m
+[31m-            ),[m
+[31m-        },[m
+[31m-        "items": itens_importacao,[m
+[31m-        "groupBy": "tool",[m
+[31m-        "generalComments": ([m
+[31m-            "Relatório gerado automaticamente "[m
+[31m-            "pelo QA Auditor. A auditoria utilizou "[m
+[31m-            "seleção inteligente de páginas. "[m
+[31m-            "URLs externas não foram auditadas."[m
+[31m-        ),[m
+[31m-    }[m
+[31m-[m
+[31m-    caminho = ([m
+[31m-        REPORTS_DIR[m
+[31m-        / "prontuario_automatico.json"[m
+[32m+[m[32m    aviso_validacao_manual = ([m
+[32m+[m[32m        "Verificação manual necessária: testar o envio "[m
+[32m+[m[32m        "real do formulário e confirmar o funcionamento "[m
+[32m+[m[32m        "do reCAPTCHA. A análise automática verifica "[m
+[32m+[m[32m        "apenas os indicadores técnicos identificáveis."[m
+     )[m
+ [m
+[31m-    with caminho.open([m
+[31m-        "w",[m
+[31m-        encoding="utf-8",[m
+[31m-    ) as arquivo:[m
+[31m-        json.dump([m
+[31m-            prontuario,[m
+[31m-            arquivo,[m
+[31m-            indent=4,[m
+[31m-            ensure_ascii=False,[m
+[32m+[m[32m    for nome_prontuario, nomes_checks in ([m
+[32m+[m[32m        GRUPOS_PRONTUARIO.items()[m
+[32m+[m[32m    ):[m
+[32m+[m[32m        resultado_combinado = combinar_itens_prontuario([m
+[32m+[m[32m            nomes_checks=nomes_checks,[m
+[32m+[m[32m            itens=itens,[m
+         )[m
+ [m
+[31m-    return caminho[m
+[32m+[m[32m        if resultado_combinado is None:[m
+[32m+[m[32m            continue[m
+ [m
+[32m+[m[32m        if nome_prontuario == nome_grupo_formularios:[m
+[32m+[m[32m            if resultado_combinado["status"] == "approved":[m
+[32m+[m[32m                resultado_combinado["status"] = "warning"[m
+ [m
+[31m-def executar_auditoria([m
+[31m-    url_inicial: str,[m
+[31m-) -> None:[m
+[31m-    preparar_pastas()[m
+[32m+[m[32m            observacao_atual = str([m
+[32m+[m[32m                resultado_combinado.get("obs", "")[m
+[32m+[m[32m            ).strip()[m
+ [m
+[31m-    with sync_playwright() as playwright:[m
+[31m-        browser = ([m
+[31m-            playwright.chromium.launch([m
+[31m-                headless=HEADLESS,[m
+[31m-            )[m
+[31m-        )[m
+[32m+[m[32m            if aviso_validacao_manual not in observacao_atual:[m
+[32m+[m[32m                if observacao_atual:[m
+[32m+[m[32m                    resultado_combinado["obs"] = ([m
+[32m+[m[32m                        f"{observacao_atual}\n\n"[m
+[32m+[m[32m                        f"{aviso_validacao_manual}"[m
+[32m+[m[32m                    )[m
+[32m+[m[32m                else:[m
+[32m+[m[32m                    resultado_combinado["obs"] = ([m
+[32m+[m[32m                        aviso_validacao_manual[m
+[32m+[m[32m                    )[m
+ [m
+[31m-        context = browser.new_context([m
+[31m-            viewport=VIEWPORT_DESKTOP,[m
+[31m-            ignore_https_errors=True,[m
+[32m+[m[32m        itens_importacao[nome_prontuario] = ([m
+[32m+[m[32m            resultado_combinado[m
+         )[m
+ [m
+[31m-        try:[m
+[31m-            print([m
+[31m-                "\nIniciando descoberta "[m
+[31m-                "de URLs internas...\n"[m
+[31m-            )[m
+[31m-[m
+[31m-            paginas_descobertas = ([m
+[31m-                executar_crawler([m
+[31m-                    context=context,[m
+[31m-                    url_inicial=url_inicial,[m
+[31m-                    limite_paginas=([m
+[31m-                        LIMITE_DESCOBERTA[m
+[31m-                    ),[m
+[31m-                )[m
+[31m-            )[m
+[31m-[m
+[31m-            if not paginas_descobertas:[m
+[31m-                print([m
+[31m-                    "❌ Nenhuma URL interna "[m
+[31m-                    "foi encontrada."[m
+[31m-                )[m
+[31m-[m
+[31m-                return[m
+[31m-[m
+[31m-            print([m
+[31m-                "\n🧠 Selecionando páginas "[m
+[31m-                "relevantes para auditoria..."[m
+[31m-            )[m
+[31m-[m
+[31m-            selecao_paginas = ([m
+[31m-                selecionar_paginas([m
+[31m-                    paginas_descobertas=([m
+[31m-                        paginas_descobertas[m
+[31m-                    ),[m
+[31m-                    limite_mpis=LIMITE_MPIS,[m
+[31m-                )[m
+[31m-            )[m
+[31m-[m
+[31m-            imprimir_resumo_selecao([m
+[31m-                selecao_paginas[m
+[31m-            )[m
+[31m-[m
+[31m-            urls_auditoria = ([m
+[31m-                selecao_paginas.get([m
+[31m-                    "urls",[m
+[31m-                    [],[m
+[31m-                )[m
+[31m-            )[m
+[31m-[m
+[31m-            if not urls_auditoria:[m
+[31m-                print([m
+[31m-                    "\n❌ Nenhuma página foi "[m
+[31m-                    "selecionada para auditoria."[m
+[31m-                )[m
+[31m-[m
+[31m-                return[m
+[31m-[m
+[31m-            print([m
+[31m-                "\n🚀 Iniciando auditoria "[m
+[31m-                "das páginas selecionadas..."[m
+[31m-            )[m
+[31m-[m
+[31m-            ([m
+[31m-                paginas_auditadas,[m
+[31m-                urls_ignoradas,[m
+[31m-            ) = auditar_urls([m
+[31m-                context=context,[m
+[31m-                urls=urls_auditoria,[m
+[31m-                url_principal=url_inicial,[m
+[31m-            )[m
+[31m-[m
+[31m-            if not paginas_auditadas:[m
+[31m-                print([m
+[31m-                    "\n❌ Nenhuma página "[m
+[31m-                    "interna pôde ser "[m
+[31m-                    "auditada."[m
+[31m-                )[m
+[31m-[m
+[31m-                return[m
+[31m-[m
+[31m-            print([m
+[31m-                "\n🔎 Executando checks "[m
+[31m-                "globais..."[m
+[31m-            )[m
+[31m-[m
+[31m-            checks_globais = ([m
+[31m-                executar_checks_globais([m
+[31m-                    paginas=paginas_auditadas,[m
+[31m-                )[m
+[31m-            )[m
+[31m-[m
+[31m-            itens_prontuario = ([m
+[31m-                gerar_itens_prontuario([m
+[31m-                    paginas=paginas_auditadas,[m
+[31m-                    checks_globais=checks_globais,[m
+[31m-                )[m
+[31m-            )[m
+[31m-[m
+[31m-            caminho_tecnico = ([m
+[31m-                salvar_relatorio_tecnico([m
+[31m-                    url_inicial=url_inicial,[m
+[31m-                    paginas=paginas_auditadas,[m
+[31m-                    checks_globais=checks_globais,[m
+[31m-                    urls_ignoradas=urls_ignoradas,[m
+[31m-                    selecao_paginas=selecao_paginas,[m
+[31m-                )[m
+[31m-            )[m
+[31m-[m
+[31m-            caminho_prontuario = ([m
+[31m-                salvar_prontuario_automatico([m
+[31m-                    url_inicial=url_inicial,[m
+[31m-                    paginas=paginas_auditadas,[m
+[31m-                    itens=itens_prontuario,[m
+[31m-                    urls_ignoradas=urls_ignoradas,[m
+[31m-                    selecao_paginas=selecao_paginas,[m
+[31m-                )[m
+[31m-            )[m
+[31m-[m
+[31m-            caminho_html = ([m
+[31m-                exportar_relatorio_html([m
+[31m-                    url_inicial=url_inicial,[m
+[31m-                    paginas=paginas_auditadas,[m
+[31m-                    itens_prontuario=itens_prontuario,[m
+[31m-                    caminho_saida=([m
+[31m-                        REPORTS_DIR[m
+[31m-                        / "relatorio_qa.html"[m
+[31m-                    ),[m
+[31m-                )[m
+[31m-            )[m
+[31m-[m
+[31m-            mostrar_resumo([m
+[31m-                paginas=paginas_auditadas,[m
+[31m-                checks_globais=checks_globais,[m
+[31m-                urls_ignoradas=urls_ignoradas,[m
+[31m-                selecao_paginas=selecao_paginas,[m
+[31m-            )[m
+[31m-[m
+[31m-            print([m
+[31m-                f"\n📄 Relatório técnico: "[m
+[31m-                f"{caminho_tecnico}"[m
+[31m-            )[m
+[31m-[m
+[31m-            print([m
+[31m-                f"📋 Prontuário automático: "[m
+[31m-                f"{caminho_prontuario}"[m
+[31m-            )[m
+[31m-[m
+[31m-            print([m
+[31m-                f"🌐 Dashboard HTML: "[m
+[31m-                f"{caminho_html}"[m
+[31m-            )[m
+[31m-[m
+[31m-            try:[m
+[31m-                webbrowser.open([m
+[31m-                    caminho_html[m
+[31m-                    .resolve()[m
+[31m-                    .as_uri()[m
+[31m-                )[m
+[31m-[m
+[31m-            except Exception:[m
+[31m-                pass[m
+[31m-[m
+[31m-        finally:[m
+[31m-            context.close()[m
+[31m-            browser.close()[m
+\ No newline at end of file[m
+[32m+[m[32m    return itens_importacao[m

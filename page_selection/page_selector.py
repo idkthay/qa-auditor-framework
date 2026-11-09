@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from selectors.keywords import (
+from page_selection.keywords import (
     CATEGORIAS_ESTRUTURAIS,
     ROTULOS_CATEGORIAS,
 )
-from selectors.page_classifier import (
+from page_selection.page_classifier import (
     classificar_pagina,
     obter_url,
 )
