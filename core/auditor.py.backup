@@ -1,0 +1,254 @@
+
+from typing import Any
+
+
+MAPEAMENTO_DIRETO_PRONTUARIO = {
+    "Google Analytics 4 - GA4": (
+        "Tag Google Analytics (GA4)"
+    ),
+    "Menu Ativo": (
+        "Botão - Active Menu"
+    ),
+    "Images - Broken": (
+        "Imagem quebrada"
+    ),
+    "Images - Over 200 KB": (
+        "Imagens - Over 200kb"
+    ),
+    "Banners - Over 500 KB": (
+        "Imagens - Banner Over 500kb"
+    ),
+    "Favicon": (
+        "Favicon funcional (32x32)"
+    ),
+    "Input Masks": (
+        "Máscaras ativas nos campos de entrada "
+        "(telefone, CPF, etc.)"
+    ),
+    "Google Maps carregando e funcional": (
+        "Google Maps - Carregando e funcional"
+    ),
+    "Texto Formatação - Números de Telefone": (
+        "Texto Formatação - Números de Telefone "
+        "(Ex: 11 99999-9999/11 5555-5555) "
+    ),
+    "Texto Formatação - E-mails": (
+        "Texto Formatação - Emails "
+        "(Ex: email@dominio.com)"
+    ),
+    "Sitemap XML - Validade": (
+        "Sitemap.xml"
+    ),
+}
+
+
+ITENS_DIRETOS_PRONTUARIO = {
+    "CTA - Botão WhatsApp",
+    "Links de números clicáveis e funcionais",
+    "Emails clicáveis e funcionais (mailto:)",
+    "Nenhum link ou botão quebrado (404/500)",
+    "Lorem Ipsum",
+    "H1 Missing",
+    "H1 Multiple",
+    "H1 Duplicate",
+    "H2 Missing",
+    "URLs - Contains Space",
+    "URLs - Multiple Slashes",
+    "URLs - Non ASCII Characters URL",
+    "URLs - Over Characters",
+    "URLs - Uppercase",
+    "Response Codes - Client Error",
+    "Response Codes - Redirection",
+    "Response Codes - Server Error",
+    "Response Codes - Success",
+    "Meta Descriptions - Duplicate",
+    "Meta Descriptions - Missing",
+    "Meta Descriptions - Over 160 caracteres",
+    "Page Titles - Missing",
+    "Page Titles - Duplicate",
+    "Page Titles - Over 100 caracteres",
+    "Mixed Content HTTP/HTTPS",
+    "Missing HSTS",
+    "HTTPS URL’s (100% das URLs)",
+    "Missing X Frame Options",
+    "Missing Secure Referrer Policy",
+    "Missing Content Security Policy",
+    "Missing X Content Type Options",
+}
+
+
+GRUPOS_PRONTUARIO = {
+    (
+        "Todos formulários com validação "
+        "e reCAPTCHA ativo (v2 ou v3)"
+    ): [
+        "Formulário presente",
+        "Formulário - Action configurado",
+        "Formulário - Método POST",
+        "Formulário - Botão de envio",
+        "Formulário - Campos obrigatórios",
+        "Formulário - Campos identificados",
+        "Formulário - reCAPTCHA presente",
+        "Formulário - Apenas um tipo de reCAPTCHA",
+    ],
+    "Menu Header = Menu Footer + Mapa do Site": [
+        "Menu Header x Footer",
+        "Mapa do Site no Footer",
+    ],
+    "Mapa do Site": [
+        "Mapa do Site no Footer",
+    ],
+}
+
+
+def normalizar_status_prontuario(
+    status: str,
+) -> str:
+    if status == "approved":
+        return "approved"
+
+    if status == "rejected":
+        return "rejected"
+
+    return "warning"
+
+
+def combinar_itens_prontuario(
+    nomes_checks: list[str],
+    itens: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    resultados = [
+        (nome, itens[nome])
+        for nome in nomes_checks
+        if nome in itens
+    ]
+
+    if not resultados:
+        return None
+
+    checks_ausentes = [
+        nome
+        for nome in nomes_checks
+        if nome not in itens
+    ]
+
+    statuses = [
+        normalizar_status_prontuario(
+            str(resultado.get("status", ""))
+        )
+        for _, resultado in resultados
+    ]
+
+    if "rejected" in statuses:
+        status_final = "rejected"
+    elif "warning" in statuses or checks_ausentes:
+        status_final = "warning"
+    else:
+        status_final = "approved"
+
+    observacoes: list[str] = []
+
+    for nome, resultado in resultados:
+        observacao = str(
+            resultado.get("obs", "")
+        ).strip()
+
+        if observacao:
+            observacoes.append(
+                f"{nome}:\n{observacao}"
+            )
+
+    if checks_ausentes:
+        observacoes.append(
+            "Validação automática parcial. "
+            "Checks não encontrados: "
+            + ", ".join(checks_ausentes)
+            + "."
+        )
+
+    return {
+        "status": status_final,
+        "obs": "\n\n".join(observacoes),
+        "imgs": [],
+    }
+
+
+def gerar_itens_importacao_prontuario(
+    itens: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    itens_importacao: dict[
+        str,
+        dict[str, Any],
+    ] = {}
+
+    for nome, resultado in itens.items():
+        nome_prontuario = (
+            MAPEAMENTO_DIRETO_PRONTUARIO.get(
+                nome,
+                nome,
+            )
+        )
+
+        nome_valido = (
+            nome in ITENS_DIRETOS_PRONTUARIO
+            or nome in MAPEAMENTO_DIRETO_PRONTUARIO
+        )
+
+        if not nome_valido:
+            continue
+
+        itens_importacao[nome_prontuario] = {
+            "status": normalizar_status_prontuario(
+                str(resultado.get("status", ""))
+            ),
+            "obs": str(resultado.get("obs", "")),
+            "imgs": [],
+        }
+
+    nome_grupo_formularios = (
+        "Todos formulários com validação "
+        "e reCAPTCHA ativo (v2 ou v3)"
+    )
+
+    aviso_validacao_manual = (
+        "Verificação manual necessária: testar o envio "
+        "real do formulário e confirmar o funcionamento "
+        "do reCAPTCHA. A análise automática verifica "
+        "apenas os indicadores técnicos identificáveis."
+    )
+
+    for nome_prontuario, nomes_checks in (
+        GRUPOS_PRONTUARIO.items()
+    ):
+        resultado_combinado = combinar_itens_prontuario(
+            nomes_checks=nomes_checks,
+            itens=itens,
+        )
+
+        if resultado_combinado is None:
+            continue
+
+        if nome_prontuario == nome_grupo_formularios:
+            if resultado_combinado["status"] == "approved":
+                resultado_combinado["status"] = "warning"
+
+            observacao_atual = str(
+                resultado_combinado.get("obs", "")
+            ).strip()
+
+            if aviso_validacao_manual not in observacao_atual:
+                if observacao_atual:
+                    resultado_combinado["obs"] = (
+                        f"{observacao_atual}\n\n"
+                        f"{aviso_validacao_manual}"
+                    )
+                else:
+                    resultado_combinado["obs"] = (
+                        aviso_validacao_manual
+                    )
+
+        itens_importacao[nome_prontuario] = (
+            resultado_combinado
+        )
+
+    return itens_importacao
